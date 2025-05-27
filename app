@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Case Bot</title>
+  <style>
+    body { font-family: Arial; padding: 2rem; max-width: 600px; margin: auto; }
+    input, button { padding: 0.5rem; margin: 0.5rem 0; width: 100%; }
+    .results a { display: block; margin: 0.5rem 0; color: blue; }
+  </style>
+</head>
+<body>
+  <h2>Case Bot 🤖</h2>
+  <p>Enter your case problem:</p>
+  <input id="query" placeholder="e.g., market entry strategy for edtech..." />
+  <button onclick="submitQuery()">Find PPTs</button>
+  <div class="results" id="results"></div>
+
+  <script>
+    async function submitQuery() {
+      const query = document.getElementById('query').value;
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = "Searching...";
+      const res = await fetch("YOUR_WEB_APP_URL", {
+        method: "POST",
+        body: JSON.stringify({ query }),
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      const links = data.results.split('\n').filter(line => line.trim());
+      resultsDiv.innerHTML = links.map(line => {
+        const match = line.match(/\[Link \d+\]\((.*?)\)/);
+        const desc = line.split(' - ')[1];
+        return `<a href="${match[1]}" target="_blank">${desc}</a>`;
+      }).join('');
+    }
+  </script>
+</body>
+</html>
