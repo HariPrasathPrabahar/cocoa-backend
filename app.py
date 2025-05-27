@@ -1,33 +1,38 @@
 from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
+from openai import OpenAI
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import openai
 import numpy as np
+import json
 import os
+
+from oauth2client.service_account import ServiceAccountCredentials
 
 app = FastAPI()
 
-# Load OpenAI API key from env var
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Set up OpenAI client
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Google Sheets setup
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
-client = gspread.authorize(creds)
-sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1Xm3ZfojYLGVTcTFefMue9f1GctoPpJ76Yl7U0Ow-9tk/edit?usp=sharing").sheet1
+# Authenticate Google Sheets
+def load_gsheet():
+    service_account_info = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON"))
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+    gc = gspread.authorize(creds)
+    sheet = gc.open_by_url(os.getenv("https://docs.google.com/spreadsheets/d/1Xm3ZfojYLGVTcTFefMue9f1GctoPpJ76Yl7U0Ow-9tk/edit?usp=sharing")).sheet1
+    descriptions = sheet.col_values(2)[1:]  # Column B
+    links = sheet.col_values(1)[1:]         # Column A
+    return descriptions, links
 
-# Load data from sheet
-descriptions = sheet.col_values(2)[1:]  # Column B: Descriptions
-links = sheet.col_values(1)[1:]         # Column A: Links
+descriptions, links = load_gsheet()
 
-# Embed all descriptions ONCE using OpenAI
-def get_embedding(text):
-    res = openai.Embedding.create(
-        input=[text],
+# Generate embeddings once at startup
+def get_embedding(text: str) -> np.ndarray:
+    response = openai_client.embeddings.create(
+        input=text,
         model="text-embedding-ada-002"
     )
-    return np.array(res['data'][0]['embedding'])
+    return np.array(response.data[0].embedding)
 
 desc_embeddings = [get_embedding(desc) for desc in descriptions]
 
