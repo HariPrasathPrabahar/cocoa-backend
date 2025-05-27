@@ -3,12 +3,11 @@ from fastapi.responses import JSONResponse
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from sentence_transformers import SentenceTransformer, util
-import faiss
 import numpy as np
 
 app = FastAPI()
 
-# Load the model once at startup
+# Load the model once
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Google Sheet setup
@@ -17,25 +16,22 @@ creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json",
 client = gspread.authorize(creds)
 sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1Xm3ZfojYLGVTcTFefMue9f1GctoPpJ76Yl7U0Ow-9tk/edit?usp=sharing").sheet1
 
-# Preload data and create vector index
-descriptions = sheet.col_values(2)[1:]  # Assuming column 2 is descriptions (excluding header)
-links = sheet.col_values(1)[1:]         # Assuming column 1 is links
-
-embeddings = model.encode(descriptions, convert_to_tensor=False)
-dimension = embeddings[0].shape[0]
-index = faiss.IndexFlatL2(dimension)
-index.add(np.array(embeddings))
+# Load data once
+descriptions = sheet.col_values(2)[1:]  # Column 2: Descriptions
+links = sheet.col_values(1)[1:]         # Column 1: PPT links
+embeddings = model.encode(descriptions, convert_to_tensor=True)
 
 @app.get("/search")
-def search_ppts(q: str = Query(..., description="Enter case description")):
-    query_embedding = model.encode([q])[0]
-    D, I = index.search(np.array([query_embedding]), k=5)
+def search_ppts(q: str = Query(...)):
+    query_embedding = model.encode([q], convert_to_tensor=True)
+    cos_scores = util.cos_sim(query_embedding, embeddings)[0]
+    top_results = np.argsort(-cos_scores.numpy())[:5]
 
     results = []
-    for i in I[0]:
+    for idx in top_results:
         results.append({
-            "description": descriptions[i],
-            "link": links[i]
+            "description": descriptions[idx],
+            "link": links[idx]
         })
 
     return JSONResponse(content={"results": results})
