@@ -11,7 +11,7 @@ from sentence_transformers import SentenceTransformer
 app = FastAPI()
 
 # Load sentence transformer model
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 
 # Authenticate Google Sheets
 def load_gsheet():
