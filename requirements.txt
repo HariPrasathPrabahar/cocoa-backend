@@ -3,4 +3,4 @@ uvicorn[standard]
 gspread
 oauth2client
 sentence-transformers
-faiss-cpu
+numpy
