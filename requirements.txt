@@ -1,6 +1,6 @@
 fastapi
-uvicorn[standard]
+uvicorn
+openai>=1.0.0
 gspread
 oauth2client
-openai
 numpy
